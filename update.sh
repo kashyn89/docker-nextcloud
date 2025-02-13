@@ -2,17 +2,14 @@
 set -eo pipefail
 
 declare -A alpine_version=(
-	[25]='3.16'
-	[default]='3.18'
+	[default]='3.21'
 )
 
 declare -A debian_version=(
-	[25]='bullseye'
 	[default]='bookworm'
 )
 
 declare -A php_version=(
-	[25]='8.1'
 	[default]='8.2'
 )
 
@@ -47,6 +44,24 @@ apcu_version="$(
 		| tail -1
 )"
 
+igbinary_version="$(
+	git ls-remote --tags https://github.com/igbinary/igbinary.git \
+		| cut -d/ -f3 \
+		| grep -viE '[a-z]' \
+		| tr -d '^{}' \
+		| sort -V \
+		| tail -1
+)"
+
+imagick_version="$(
+	git ls-remote --tags https://github.com/mkoppanen/imagick.git \
+		| cut -d/ -f3 \
+		| grep -viE '[a-z]' \
+		| tr -d '^{}' \
+		| sort -V \
+		| tail -1
+)"
+
 memcached_version="$(
 	git ls-remote --tags https://github.com/php-memcached-dev/php-memcached.git \
 		| cut -d/ -f3 \
@@ -65,20 +80,12 @@ redis_version="$(
 		| tail -1
 )"
 
-imagick_version="$(
-	git ls-remote --tags https://github.com/mkoppanen/imagick.git \
-		| cut -d/ -f3 \
-		| grep -viE '[a-z]' \
-		| tr -d '^{}' \
-		| sort -V \
-		| tail -1
-)"
-
 declare -A pecl_versions=(
 	[APCu]="$apcu_version"
+	[igbinary]="$igbinary_version"
+	[imagick]="$imagick_version"
 	[memcached]="$memcached_version"
 	[redis]="$redis_version"
-	[imagick]="$imagick_version"
 )
 
 variants=(
@@ -87,7 +94,7 @@ variants=(
 	fpm-alpine
 )
 
-min_version='25'
+min_version='29'
 
 # version_greater_or_equal A B returns whether A >= B
 function version_greater_or_equal() {
@@ -112,14 +119,6 @@ function create_variant() {
 
 	echo "updating $fullversion [$1] $variant"
 
-	# Apply version+variant-specific patches
-	case "$version" in
-		25)
-			# Nextcloud 26+ recommends sysvsem
-			sed -ri -e '/sysvsem/d' "$dir/Dockerfile"
-			;;
-	esac
-
 	# Replace the variables.
 	sed -ri -e '
 		s/%%ALPINE_VERSION%%/'"$alpineVersion"'/g;
@@ -132,9 +131,10 @@ function create_variant() {
 		s/%%CMD%%/'"${cmd[$variant]}"'/g;
 		s|%%VARIANT_EXTRAS%%|'"${extras[$variant]}"'|g;
 		s/%%APCU_VERSION%%/'"${pecl_versions[APCu]}"'/g;
+		s/%%IGBINARY_VERSION%%/'"${pecl_versions[igbinary]}"'/g;
+		s/%%IMAGICK_VERSION%%/'"${pecl_versions[imagick]}"'/g;
 		s/%%MEMCACHED_VERSION%%/'"${pecl_versions[memcached]}"'/g;
 		s/%%REDIS_VERSION%%/'"${pecl_versions[redis]}"'/g;
-		s/%%IMAGICK_VERSION%%/'"${pecl_versions[imagick]}"'/g;
 		s/%%CRONTAB_INT%%/'"$crontabInt"'/g;
 	' "$dir/Dockerfile"
 

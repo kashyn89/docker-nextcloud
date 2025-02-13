@@ -1,4 +1,5 @@
-FROM php:%%PHP_VERSION%%-%%VARIANT%%-%%DEBIAN_VERSION%%
+# DO NOT EDIT: created by update.sh from Dockerfile-debian.template
+FROM php:8.2-fpm-bookworm
 
 # entrypoint.sh and cron.sh dependencies
 RUN set -ex; \
@@ -14,7 +15,7 @@ RUN set -ex; \
     rm -rf /var/lib/apt/lists/*; \
     \
     mkdir -p /var/spool/cron/crontabs; \
-    echo '*/%%CRONTAB_INT%% * * * * php -f /var/www/html/cron.php' > /var/spool/cron/crontabs/www-data
+    echo '*/5 * * * * php -f /var/www/html/cron.php' > /var/spool/cron/crontabs/www-data
 
 # install the PHP extensions we need
 # see https://docs.nextcloud.com/server/stable/admin_manual/installation/source_installation.html
@@ -65,12 +66,12 @@ RUN set -ex; \
     ; \
     \
 # pecl will claim success even if one install fails, so we need to perform each install separately
-    pecl install APCu-%%APCU_VERSION%%; \
-    pecl install igbinary-%%IGBINARY_VERSION%%; \
-    pecl install imagick-%%IMAGICK_VERSION%%; \
-    pecl install memcached-%%MEMCACHED_VERSION%% \
+    pecl install APCu-5.1.24; \
+    pecl install igbinary-3.2.16; \
+    pecl install imagick-3.7.0; \
+    pecl install memcached-3.3.0 \
         --configureoptions 'enable-memcached-igbinary="yes"'; \
-    pecl install redis-%%REDIS_VERSION%% \
+    pecl install redis-6.1.0 \
         --configureoptions 'enable-redis-igbinary="yes" enable-redis-zstd="yes" enable-redis-lz4="yes"'; \
     \
     docker-php-ext-enable \
@@ -132,9 +133,9 @@ RUN { \
     chmod -R g=u /var/www
 
 VOLUME /var/www/html
-%%VARIANT_EXTRAS%%
 
-ENV NEXTCLOUD_VERSION %%VERSION%%
+
+ENV NEXTCLOUD_VERSION 29.0.12
 
 RUN set -ex; \
     fetchDeps=" \
@@ -144,8 +145,8 @@ RUN set -ex; \
     apt-get update; \
     apt-get install -y --no-install-recommends $fetchDeps; \
     \
-    curl -fsSL -o nextcloud.tar.bz2 "%%DOWNLOAD_URL%%"; \
-    curl -fsSL -o nextcloud.tar.bz2.asc "%%DOWNLOAD_URL_ASC%%"; \
+    curl -fsSL -o nextcloud.tar.bz2 "https://download.nextcloud.com/server/releases/nextcloud-29.0.12.tar.bz2"; \
+    curl -fsSL -o nextcloud.tar.bz2.asc "https://download.nextcloud.com/server/releases/nextcloud-29.0.12.tar.bz2.asc"; \
     export GNUPGHOME="$(mktemp -d)"; \
 # gpg key from https://nextcloud.com/nextcloud.asc
     gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 28806A878AE423A28372792ED75899B9A724937A; \
@@ -165,4 +166,4 @@ COPY *.sh upgrade.exclude /
 COPY config/* /usr/src/nextcloud/config/
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["%%CMD%%"]
+CMD ["php-fpm"]
